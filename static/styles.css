@@ -1,0 +1,103 @@
+body {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+}
+
+.sidebar {
+    flex: 1;
+    background-color: brown;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-item {
+    border-style: solid;
+    border-color: black;
+    height: 5em;
+    width:100%;
+
+    display: flex;
+    flex-direction: row;
+}
+
+.compose {
+    flex: 5;
+    background-color: green;
+}
+
+.sidebar .chat {
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    flex-direction: row;
+    margin-bottom: .5rem;
+    margin-left: -.5rem;
+    padding: .5rem;
+    width: 6em;
+    -webkit-user-select: none; /* Safari */
+    user-select: none; /* Non-prefixed version, currently */
+    background-color: black;
+}
+
+.sidebar .inline-skeleton {
+    margin-bottom: .5rem;
+}
+
+.chat .pfp {
+    background: #6b6b87;
+    border-radius: 20px;
+    height: 40px;
+    width: 40px;
+    margin: 0.25rem 0 0.5rem 0.7rem;
+}
+
+.chat .who {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding: 0 1rem;
+    text-align: left;
+  
+}
+
+.who .top-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.top-row h3 {
+    margin: 0;
+    width: 70%;
+}
+
+.timestamp {
+    color: #6b6b87;
+    width: 30%;
+    text-align: left;
+}
+
+.msg-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.msg-container .msg {
+    width: 90%;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.msg-container .unread-count {
+    width: 10%;
+}
+
+.msg-container span {
+    color: #acacbf;
+}
+

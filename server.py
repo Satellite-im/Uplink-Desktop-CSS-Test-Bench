@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 from bottle import route, run, static_file, template
 
 @route('/static/styles.css')

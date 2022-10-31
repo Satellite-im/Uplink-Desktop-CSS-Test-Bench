@@ -74,7 +74,7 @@ body {
 }
 
 .timestamp {
-    padding-right: 2em;
+    margin-right: 1em;
 }
 
 
@@ -93,14 +93,19 @@ body {
 
 .unread-count {
     align-self: center;
-    padding-right:2em;
+    margin-right:1em;
     background-color: aqua;
     height: 2em;
     width: 2em;
+    min-width: 2em;
     border-radius: 0.5em;
+
 }
 
 .unread-count > span {
     font-weight: bold;
-
+    
+    position: relative;
+    top: 0.4em;
+    right: -0.7em;
 }

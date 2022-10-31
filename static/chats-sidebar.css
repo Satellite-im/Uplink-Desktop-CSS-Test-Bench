@@ -12,92 +12,68 @@ body {
     flex-direction: column;
 }
 
-.sidebar-item {
-    border-style: solid;
-    border-color: black;
-    height: 5em;
-    width:100%;
-
-    display: flex;
-    flex-direction: row;
-}
-
 .compose {
     flex: 5;
     background-color: green;
 }
 
-.sidebar .chat {
-    border-radius: 4px;
+.chat {
+    border-style: solid;
+    border-color: black;
     cursor: pointer;
-    display: inline-flex;
-    flex-direction: row;
-    margin-bottom: .5rem;
-    margin-left: -.5rem;
-    padding: .5rem;
-    width: 6em;
-    -webkit-user-select: none; /* Safari */
-    user-select: none; /* Non-prefixed version, currently */
-    background-color: black;
-}
-
-.sidebar .inline-skeleton {
-    margin-bottom: .5rem;
-}
-
-.chat .pfp {
-    background: #6b6b87;
-    border-radius: 20px;
-    height: 40px;
-    width: 40px;
-    margin: 0.25rem 0 0.5rem 0.7rem;
-}
-
-.chat .who {
     display: flex;
-    flex: 1;
-    flex-direction: column;
-    padding: 0 1rem;
-    text-align: left;
+    flex-direction: row;
+  
+    height: 6em;
+    width: 100%;
+}
+
+.pfp {
+    background: gray;
+    border-radius: 25px;
+    height: 50px;
+    width: 50px;
+    /*this is required to prevent a message from squashing the circle/profile picture*/
+    min-width: 50px;
+
+    align-self: center;
+    margin-left: 10px;
+    margin-right: 10px;
   
 }
 
-.who .top-row {
+.who {
     display: flex;
-    flex-direction: row;
-    justify-content: space-between;
+    flex-direction: column;
 }
 
-.top-row h3 {
-    margin: 0;
-    width: 70%;
+.top-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    
 }
 
 .timestamp {
-    color: #6b6b87;
-    width: 30%;
-    text-align: left;
+    padding-right: 2em;
 }
+
 
 .msg-container {
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
 }
 
-.msg-container .msg {
-    width: 90%;
+.msg {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
+
 }
 
-.msg-container .unread-count {
-    width: 10%;
+.unread-count {
+    align-self: center;
+    padding-right:2em;
 }
-
-.msg-container span {
-    color: #acacbf;
-}
-

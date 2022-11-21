@@ -4,53 +4,68 @@
     </head>
 <body style="display:flex; flex-direction:column; justify-content:space-between;">
     <span>video player</span>
-    <video width="250px" height="250px" controls></video>
+    <video width="250px" height="250px"></video>
+    <button onclick="play()">start</button>
     <script type="text/javascript">
-        // code taken from here: https://gist.github.com/skrater/eecebed67a26a1b107dd447e3165d4d4
-        var websocket = new WebSocket('ws://localhost:8082');
-        websocket.binaryType = 'arraybuffer';
+        function play() {
+            // code taken from here: https://gist.github.com/skrater/eecebed67a26a1b107dd447e3165d4d4
+            var websocket = new WebSocket('ws://localhost:8082');
+            websocket.binaryType = 'arraybuffer';
 
-        var mediaSource = new MediaSource();
-        var buffer;
-        var queue = [];
+            var mediaSource = new MediaSource();
+            var buffer;
+            var queue = [];
 
-        var video = document.querySelector('video');
-        video.src = window.URL.createObjectURL(mediaSource);
+            var video = document.querySelector('video');
+            video.src = window.URL.createObjectURL(mediaSource);
 
-        mediaSource.addEventListener('sourceopen', function(e) {
-            // chrome doesn't like autoplay. added controls to video element for now. 
-           // video.play();
+            mediaSource.addEventListener('sourceopen', function(e) {
 
-            buffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
+                buffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
 
-            // list of events here: https://www.w3.org/TR/media-source/#dfn-update
-            buffer.addEventListener('updatestart', function(e) { console.log('updatestart: ' + mediaSource.readyState); });
-            buffer.addEventListener('update', function(e) { console.log('update: ' + mediaSource.readyState); });
-            buffer.addEventListener('updateend', function(e) { console.log('updateend: ' + mediaSource.readyState); });
-            buffer.addEventListener('error', function(e) { console.log('error: ' + mediaSource.readyState + ' ' + JSON.stringify(e)); });
-            buffer.addEventListener('abort', function(e) { console.log('abort: ' + mediaSource.readyState); });
+                // list of events here: https://www.w3.org/TR/media-source/#dfn-update
+                buffer.addEventListener('updatestart', function(e) { console.log('updatestart: ' + mediaSource.readyState); });
+                buffer.addEventListener('update', function(e) { console.log('update: ' + mediaSource.readyState); });
+                buffer.addEventListener('updateend', function(e) { console.log('updateend: ' + mediaSource.readyState); });
+                buffer.addEventListener('error', function(e) { console.log('error: ' + mediaSource.readyState + ' ' + JSON.stringify(e)); });
+                buffer.addEventListener('abort', function(e) { console.log('abort: ' + mediaSource.readyState); });
 
-            buffer.addEventListener('update', function() { // Note: Have tried 'updateend'
-                if (queue.length > 0 && !buffer.updating) {
-                    buffer.appendBuffer(queue.shift());
+                buffer.addEventListener('update', function() { // Note: Have tried 'updateend'
+                    if (queue.length > 0 && !buffer.updating) {
+                        buffer.appendBuffer(queue.shift());
+                    }
+                });
+
+                video.play().then(_ => {
+                    // Automatic playback started!
+                    // Show playing UI.
+                    console.log('playing video');
+                })
+                .catch(error => {
+                    // Auto-play was prevented
+                    // Show paused UI.
+                    console.log('failed to play: ', JSON.stringify(error));
+                });
+
+            }, false);
+
+            mediaSource.addEventListener('sourceopen', function(e) { console.log('sourceopen: ' + mediaSource.readyState); });
+            mediaSource.addEventListener('sourceended', function(e) { console.log('sourceended: ' + mediaSource.readyState); });
+            mediaSource.addEventListener('sourceclose', function(e) { console.log('sourceclose: ' + mediaSource.readyState); });
+            mediaSource.addEventListener('error', function(e) { console.log('error: ' + mediaSource.readyState + ' ' + e); });
+
+            websocket.addEventListener('message', function(e) {
+                if (typeof e.data !== 'string') {
+                    if (buffer !== undefined) {
+                        if (buffer.updating || queue.length > 0) {
+                            queue.push(e.data);
+                        } else {
+                            buffer.appendBuffer(e.data);
+                        }
+                    }  
                 }
-            });
-        }, false);
-
-        mediaSource.addEventListener('sourceopen', function(e) { console.log('sourceopen: ' + mediaSource.readyState); });
-        mediaSource.addEventListener('sourceended', function(e) { console.log('sourceended: ' + mediaSource.readyState); });
-        mediaSource.addEventListener('sourceclose', function(e) { console.log('sourceclose: ' + mediaSource.readyState); });
-        mediaSource.addEventListener('error', function(e) { console.log('error: ' + mediaSource.readyState + ' ' + e); });
-
-        websocket.addEventListener('message', function(e) {
-            if (typeof e.data !== 'string') {
-                if (buffer.updating || queue.length > 0) {
-                    queue.push(e.data);
-                } else {
-                    buffer.appendBuffer(e.data);
-                }
-            }
-        }, false);
+            }, false);
+        }
     </script>
 </body>
 </html>

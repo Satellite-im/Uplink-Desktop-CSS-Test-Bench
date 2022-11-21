@@ -1,0 +1,54 @@
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+    <head>
+        <link rel="stylesheet" href="/static/tools.css" type="text/css">
+    </head>
+<body style="display:flex; flex-direction:column; justify-content:space-between;">
+    <span>video player</span>
+    <video width="250px" height="250px" controls></video>
+    <script type="text/javascript">
+        var websocket = new WebSocket('ws://localhost:8082');
+        websocket.binaryType = 'arraybuffer';
+
+        var mediaSource = new MediaSource();
+        var buffer;
+        var queue = [];
+
+        var video = document.querySelector('video');
+        video.src = window.URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener('sourceopen', function(e) {
+           // video.play();
+
+            buffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
+
+            // list of events here: https://www.w3.org/TR/media-source/#dfn-update
+            buffer.addEventListener('updatestart', function(e) { console.log('updatestart: ' + mediaSource.readyState); });
+            buffer.addEventListener('update', function(e) { console.log('update: ' + mediaSource.readyState); });
+            buffer.addEventListener('updateend', function(e) { console.log('updateend: ' + mediaSource.readyState); });
+            buffer.addEventListener('error', function(e) { console.log('error: ' + mediaSource.readyState + ' ' + JSON.stringify(e)); });
+            buffer.addEventListener('abort', function(e) { console.log('abort: ' + mediaSource.readyState); });
+
+            buffer.addEventListener('update', function() { // Note: Have tried 'updateend'
+                if (queue.length > 0 && !buffer.updating) {
+                    buffer.appendBuffer(queue.shift());
+                }
+            });
+        }, false);
+
+        mediaSource.addEventListener('sourceopen', function(e) { console.log('sourceopen: ' + mediaSource.readyState); });
+        mediaSource.addEventListener('sourceended', function(e) { console.log('sourceended: ' + mediaSource.readyState); });
+        mediaSource.addEventListener('sourceclose', function(e) { console.log('sourceclose: ' + mediaSource.readyState); });
+        mediaSource.addEventListener('error', function(e) { console.log('error: ' + mediaSource.readyState + ' ' + e); });
+
+        websocket.addEventListener('message', function(e) {
+            if (typeof e.data !== 'string') {
+                if (buffer.updating || queue.length > 0) {
+                    queue.push(e.data);
+                } else {
+                    buffer.appendBuffer(e.data);
+                }
+            }
+        }, false);
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@
     <span>video player</span>
     <video width="250px" height="250px" controls></video>
     <script type="text/javascript">
+        // code taken from here: https://gist.github.com/skrater/eecebed67a26a1b107dd447e3165d4d4
         var websocket = new WebSocket('ws://localhost:8082');
         websocket.binaryType = 'arraybuffer';
 
@@ -17,6 +18,7 @@
         video.src = window.URL.createObjectURL(mediaSource);
 
         mediaSource.addEventListener('sourceopen', function(e) {
+            // chrome doesn't like autoplay. added controls to video element for now. 
            // video.play();
 
             buffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');

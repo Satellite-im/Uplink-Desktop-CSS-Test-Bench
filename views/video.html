@@ -4,10 +4,18 @@
     </head>
 <body style="display:flex; flex-direction:column; justify-content:space-between;">
     <span>video player</span>
-    <video width="250px" height="250px"></video>
+    <video width="250px" height="250px" controls autoplay><source src="http://localhost:8090"></video>
     <button onclick="play()">start</button>
     <script type="text/javascript">
+        // chrome doesn't allow autoplay. user interaction is required. 
+        let first_click = false;
         function play() {
+            if (first_click === false) {
+                first_click = true;
+            } else {
+                return;
+            }
+
             // code taken from here: https://gist.github.com/skrater/eecebed67a26a1b107dd447e3165d4d4
             var websocket = new WebSocket('ws://localhost:8082');
             websocket.binaryType = 'arraybuffer';
@@ -20,23 +28,16 @@
             video.src = window.URL.createObjectURL(mediaSource);
 
             mediaSource.addEventListener('sourceopen', function(e) {
-
+                console.log(mediaSource.readyState);
                 buffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
+                buffer.mode = 'sequence';
 
                 // list of events here: https://www.w3.org/TR/media-source/#dfn-update
                 buffer.addEventListener('updatestart', function(e) { console.log('updatestart: ' + mediaSource.readyState); });
                 buffer.addEventListener('update', function(e) { console.log('update: ' + mediaSource.readyState); });
-                buffer.addEventListener('updateend', function(e) { console.log('updateend: ' + mediaSource.readyState); });
-                buffer.addEventListener('error', function(e) { console.log('error: ' + mediaSource.readyState + ' ' + JSON.stringify(e)); });
-                buffer.addEventListener('abort', function(e) { console.log('abort: ' + mediaSource.readyState); });
-
-                buffer.addEventListener('update', function() { // Note: Have tried 'updateend'
-                    if (queue.length > 0 && !buffer.updating) {
-                        buffer.appendBuffer(queue.shift());
-                    }
-                });
-
-                video.play().then(_ => {
+                buffer.addEventListener('updateend', function(e) { 
+                    console.log('updateend: ' + mediaSource.readyState); 
+                    video.play().then(_ => {
                     // Automatic playback started!
                     // Show playing UI.
                     console.log('playing video');
@@ -45,6 +46,15 @@
                     // Auto-play was prevented
                     // Show paused UI.
                     console.log('failed to play: ', JSON.stringify(error));
+                });
+                });
+                buffer.addEventListener('error', function(e) { console.log('error: ' + mediaSource.readyState + ' ' + JSON.stringify(e)); });
+                buffer.addEventListener('abort', function(e) { console.log('abort: ' + mediaSource.readyState); });
+
+                buffer.addEventListener('update', function() { // Note: Have tried 'updateend'
+                    if (queue.length > 0 && !buffer.updating) {
+                        buffer.appendBuffer(queue.shift());
+                    }
                 });
 
             }, false);
@@ -62,7 +72,7 @@
                         } else {
                             buffer.appendBuffer(e.data);
                         }
-                    }  
+                    } 
                 }
             }, false);
         }

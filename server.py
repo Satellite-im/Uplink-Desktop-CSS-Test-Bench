@@ -24,6 +24,10 @@ def favorites_styles():
 def add_favorites_styles():
 	return static_file("add-favorites.css", root='./static')
 
+@route('/static/modal.css')
+def add_modal_styles():
+	return static_file("modal.css", root='./static')
+
 @route('/static/webrtc.js')
 def webrtc_js():
 	return static_file("webrtc.js", root="./static")
@@ -59,5 +63,9 @@ def gst_sendrcv_demo():
 @route('/webrtc-test1')
 def webrtc_test1():
 	return template("views/webrtc-test1.html")
+
+@route('/modal')
+def modal():
+	return template("views/modal.html")
 
 run(host='localhost', port=8080, debug=True)

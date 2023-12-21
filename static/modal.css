@@ -9,10 +9,17 @@ body {
     bottom: 0;
     left: 0;
     background-color: yellowgreen;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .modal {
-    position: absolute;
+    /*position: absolute;
     top: 50%;
     left: 50%;
+    z-index: 3;
+    min-width: 40em;
+    min-height: 40em;*/
 }

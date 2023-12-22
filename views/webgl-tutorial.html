@@ -1,0 +1,22 @@
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+    <head>
+        <link rel="stylesheet" href="/static/tools.css" type="text/css">
+    </head>
+<body style="display:flex; flex-direction:column; justify-content:space-between;">
+    <span>video player</span>
+    <canvas id="canvas" width="512" height="512">Browser doesn't support canvas. </canvas>
+    <button onclick="play()">start</button>
+    <script type="text/javascript" src="/webgl/webgl-utils.js"></script>
+    <script type="text/javascript">
+
+let first_click = false;
+function play() {
+    if (first_click === false) {
+        first_click = true;
+    } else {
+        return;
+    }
+}
+    </script>
+</body>
+</html>

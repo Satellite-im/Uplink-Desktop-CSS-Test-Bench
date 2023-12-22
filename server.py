@@ -32,6 +32,10 @@ def add_modal_styles():
 def webrtc_js():
 	return static_file("webrtc.js", root="./static")
 
+@route('webgl/webgl-utils.js')
+def webgl_utils():
+		return static_file("webgl-utils.js", root="./wegbl")
+
 @route('/')
 def hello():
 	return template('index.html')
@@ -55,6 +59,10 @@ def add_favorites():
 @route('/play-video')
 def play_video():
 	return template('views/video.html')
+
+@route('/webgl-tutorial')
+def webgl_tutorial():
+	return template('views/webgl-tutorial.html')
 
 @route('/gst-sendrcv-demo')
 def gst_sendrcv_demo():

@@ -4,9 +4,247 @@
     </head>
 <body style="display:flex; flex-direction:column; justify-content:space-between;">
     <span>video player</span>
-    <video width="250px" height="250px" controls autoplay><source src="http://localhost:8090"></video>
+    <canvas id="canvas" width="512" height="512">Browser doesn't support canvas. </canvas>
     <button onclick="play()">start</button>
+    <script type="text/javascript" src="/webgl/webgl-utils.js"></script>
     <script type="text/javascript">
+
+// thank you to https://medium.com/docler-engineering/webgl-video-manipulation-8d0892b565b6
+var vertexShaderSource = `#version 300 es
+attribute vec2 a_position;
+attribute vec2 a_texCoord;
+uniform vec2 u_resolution; 
+varying vec2 v_texCoord;
+  
+void main() {  
+  gl_Position =  vec4(( (a_position / u_resolution * 2.0) - 1.0)  * vec2(1, -1), 0, 1);  
+  v_texCoord = a_texCoord;  
+}
+`;
+
+var fragmentShaderSource = `#version 300 es
+precision highp float;
+
+uniform sampler2D u_image;
+uniform sampler2D u_image_frame;
+uniform vec2 u_resolution;
+varying vec2 v_texCoord;
+
+void main() {
+  float x_offset = mod( gl_FragCoord.y ,2.0  ) < 1.0 ? 0.5 : 0.0 ;
+  vec4 y4 =  texture2D(u_image_frame, vec2 ( v_texCoord.x / 1.0  , v_texCoord.y / 1.5  )   )  ;
+  vec4 u4 = (texture2D(u_image_frame, vec2 ( x_offset + v_texCoord.x  / 2.0  ,2.0/3.0 +  v_texCoord.y / 6.0  )   ) -0.50 ) * 2.0 ;
+  vec4 v4 = (texture2D(u_image_frame, vec2 ( x_offset + v_texCoord.x / 2.0  , 5.0/6.0 + v_texCoord.y / 6.0  )   ) -0.50 ) * 2.0 ;   
+  
+  float y = y4[0] ;
+  float u = u4[0] ;
+  float v = v4[0] ;   
+
+  float R = clamp(y + 1.13 * v, 0.0, 1.0) ;
+  float G = clamp(y - 0.39 * u - 0.58 * v, 0.0, 1.0) ;
+  float B = clamp(y + 2.03 * u, 0.0, 1.0) ;
+
+  vec4 video_pixel = vec4( vec3(R,G,B), 1.0) ;
+  gl_FragColor =  G > (R+B) ?  texture2D(u_image, v_texCoord) : video_pixel  ;
+}
+`;
+
+var glRef = {};
+
+// The required resolution is passed as parameters
+const initWebGL = async ({ width, height }) => {
+  const canvas =
+    document.querySelector("#canvas") || document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const gl = canvas.getContext("webgl2");
+  if (!gl) {
+    return;
+  }
+  glRef.gl = gl;
+
+  // setup GLSL program, for simplicity they are stored in HTML script tags
+  // use webglUtils from https://webgl2fundamentals.org/
+  const program = webglUtils.createProgramFromSources(gl, [
+    vertexShaderSource,
+    fragmentShaderSource,
+  ]);
+
+  gl.useProgram(program);
+
+  const positionLocation = gl.getAttribLocation(program, "a_position");
+  const texcoordLocation = gl.getAttribLocation(program, "a_texCoord");
+
+  const positionBuffer = gl.createBuffer();
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+  // Set a rectangle the same size as the image.
+  const x1 = 0;
+  const x2 = 0 + width;
+  const y1 = 0;
+  const y2 = 0 + height;
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([x1, y1, x2, y1, x1, y2, x1, y2, x2, y1, x2, y2]),
+    gl.STATIC_DRAW
+  );
+
+  // provide texture coordinates for the rectangle.
+  const texcoordBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([
+      0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
+    ]),
+    gl.STATIC_DRAW
+  );
+
+  const textures = [];
+
+  // create texture for the video frame
+  {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    // Set the parameters so we can render any size image.
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    const pixelData = new Uint8Array(1.5 * width * height);
+
+    // Upload the image into the texture.
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.LUMINANCE, // <-- monochrome texture, not RGBA!!!
+      width,
+      height * 1.5,
+      0,
+      gl.LUMINANCE,
+      gl.UNSIGNED_BYTE,
+      pixelData,
+      0
+    );
+
+    textures[0] = texture;
+  }
+
+  const u_image = gl.getUniformLocation(program, "u_image");
+  
+  // set which texture units to render with.
+  gl.uniform1i(u_image, 0); // texture unit 0
+  gl.uniform1i(u_image_frame, 1); // texture unit 1
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textures[0]);
+
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  // Turn on the position attribute
+  gl.enableVertexAttribArray(positionLocation);
+
+  // Bind the position buffer.
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+  // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+  {
+    const size = 2;
+    const type = gl.FLOAT;
+    const normalize = false;
+    const stride = 0;
+    const offset = 0;
+    gl.vertexAttribPointer(
+      positionLocation,
+      size,
+      type,
+      normalize,
+      stride,
+      offset
+    );
+  }
+
+  // Turn on the texcoord attribute
+  gl.enableVertexAttribArray(texcoordLocation);
+
+  // bind the texcoord buffer.
+  gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+
+  // Tell the texcoord attribute how to get data out of texcoordBuffer (ARRAY_BUFFER)
+  {
+    const size = 2;
+    const type = gl.FLOAT;
+    const normalize = false;
+    const stride = 0;
+    const offset = 0;
+    gl.vertexAttribPointer(
+      texcoordLocation,
+      size,
+      type,
+      normalize,
+      stride,
+      offset
+    );
+  }
+
+  // lookup uniforms
+  const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+  // set the resolution
+  gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
+
+  // Draw the rectangle.
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+};
+
+// todo: read these from the frame buffer
+const W = 512; 
+const H = 512; 
+
+async function start() {
+  const buffer = new Uint8Array(W * H * 1.5);
+  const bufferRGB = new Uint8Array(W * H * 4);
+
+  const transformer = new TransformStream({
+    async transform(videoFrame, controller) {
+      const startTs = performance.now();
+      await videoFrame.copyTo(buffer);
+
+      const { gl } = glRef;   // get the webGL reference 
+
+      gl.activeTexture(gl.TEXTURE1);   // Upload the image into the texture.
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.LUMINANCE,
+        W,
+        H * 1.5,
+        0,
+        gl.LUMINANCE,
+        gl.UNSIGNED_BYTE,
+        buffer,
+        0
+      );
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);       // Draw the image
+
+      gl.flush();
+      gl.finish();
+
+      gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, bufferRGB);
+
+    
+    }
+  });
+
+}
+
         // chrome doesn't allow autoplay. user interaction is required. 
         let first_click = false;
         function play() {
@@ -17,8 +255,30 @@
             }
 
             // code taken from here: https://gist.github.com/skrater/eecebed67a26a1b107dd447e3165d4d4
-            var websocket = new WebSocket('ws://localhost:8082');
+            var websocket = new WebSocket('ws://localhost:9002');
             websocket.binaryType = 'arraybuffer';
+
+            const canvas = document.querySelector("#canvas") || document.createElement("canvas");
+            canvas.height = 250;
+            canvas.width = 250;
+
+            // thanks to webgl2fundamentals.org for the example code
+            // also https://medium.com/docler-engineering/webgl-video-manipulation-8d0892b565b6
+            const gl = canvas.getContext("webgl2");
+            if (!gl) {
+                return;
+            }
+
+            glRef.gl = gl;
+
+            // setup GLSL program, for simplicity they are stored in HTML script tags
+            // use webglUtils from https://webgl2fundamentals.org/
+            const program = webglUtils.createProgramFromSources(gl, [
+                vertexShaderSource,
+                fragmentShaderSource
+            ]);
+
+            gl.useProgram(program);
 
             var mediaSource = new MediaSource();
             var buffer;

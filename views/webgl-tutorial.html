@@ -17,6 +17,52 @@ function play() {
         return;
     }
 }
+
+const vertexShaderSource = `#version 300 es
+ 
+void main() {  
+
+}
+`;
+
+const fragmentShaderSource = `#version 300 es
+precision highp float;
+
+void main() {
+
+}
+`;
+
+var glRef = {};
+
+function main() {
+    const canvas = document.querySelector("#canvas") || document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+
+    const gl = canvas.getContext("webgl2");
+    if (!gl) {
+        return;
+    }
+    glRef.gl = gl;
+
+    // setup GLSL program, for simplicity they are stored in HTML script tags
+    // use webglUtils from https://webgl2fundamentals.org/
+    const program = webglUtils.createProgramFromSources(gl, [
+        vertexShaderSource,
+        fragmentShaderSource,
+    ]);
+
+    gl.useProgram(program);
+
+    // Set clear color to black, fully opaque
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    // Clear the color buffer with specified clear color
+    gl.clear(gl.COLOR_BUFFER_BIT);
+}
+
+main();
+
     </script>
 </body>
 </html>

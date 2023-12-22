@@ -32,9 +32,9 @@ def add_modal_styles():
 def webrtc_js():
 	return static_file("webrtc.js", root="./static")
 
-@route('webgl/webgl-utils.js')
+@route('/webgl/webgl-utils.js')
 def webgl_utils():
-		return static_file("webgl-utils.js", root="./wegbl")
+		return static_file("webgl/webgl-utils.js", root="./")
 
 @route('/')
 def hello():

@@ -110,10 +110,9 @@ function initBuffers(gl) {
 
     const texcoordBuffer = gl.createBuffer();
     buffers.texcoordBuffer = texcoordBuffer;
-
-    gl.bindBuffer(gl.ARRAY_BUFFER,  buffers.positionBuffer);
-
+    
     // Set a rectangle the same size as the image.
+    gl.bindBuffer(gl.ARRAY_BUFFER,  buffers.positionBuffer);
     const x1 = 0;
     const x2 = 0 + width;
     const y1 = 0;

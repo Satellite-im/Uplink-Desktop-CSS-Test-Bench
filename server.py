@@ -8,6 +8,10 @@ def test_bbb():
 def test_image():
 	return static_file("test-image.jpeg", root="./static")
 
+@route('/static/letter-f.yuv')
+def letter_f():
+	return static_file("letter-f.yuv", root="./static")
+
 @route('/static/tools.css')
 def tools_styles():
 	return static_file("tools.css", root='./static')

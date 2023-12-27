@@ -31,40 +31,38 @@ var buffers = {};
 var uniforms = {};
 
 const vertexShaderSource = `#version 300 es
-attribute vec2 a_position;
-attribute vec2 a_texCoord;
+in vec2 position;
+out vec2 texCoord;
 uniform vec2 u_resolution; 
-varying vec2 v_texCoord;
   
 void main() {  
-    gl_Position =  vec4(( (a_position / u_resolution * 2.0) - 1.0)  * vec2(1, -1), 0, 1);
-    v_texCoord = a_texCoord;
+    gl_Position =  vec4(( (position / u_resolution * 2.0) - 1.0)  * vec2(1, -1), 0, 1);
+    texCoord = (position + 1.0) / 2.0;
 }
 `;
 
 const fragmentShaderSource = `#version 300 es
-precision highp float;
+precision mediump float;
 
 uniform sampler2D u_image_frame;
-uniform vec2 u_resolution;
-varying vec2 v_texCoord;
+in vec2 texCoord;
+out vec4 fragColor;
 
 void main() {
-    float x_offset = mod( gl_FragCoord.y ,2.0  ) < 1.0 ? 0.5 : 0.0 ;
-    vec4 y4 =  texture2D(u_image_frame, vec2 ( v_texCoord.x / 1.0  , v_texCoord.y / 1.5  )   )  ;
-    vec4 u4 = (texture2D(u_image_frame, vec2 ( x_offset + v_texCoord.x  / 2.0  ,2.0/3.0 +  v_texCoord.y / 6.0  )   ) -0.50 ) * 2.0 ;
-    vec4 v4 = (texture2D(u_image_frame, vec2 ( x_offset + v_texCoord.x / 2.0  , 5.0/6.0 + v_texCoord.y / 6.0  )   ) -0.50 ) * 2.0 ;
+    // Sample Y, U, V values
+    vec3 yuv = texture(u_image_frame, texCoord).rgb;
 
-    float y = y4[0] ;
-    float u = u4[0] ;
-    float v = v4[0] ;
+    // YUV to RGB conversion
+    float Y = yuv.r;
+    float U = yuv.g - 0.5;
+    float V = yuv.b - 0.5;
 
-    float R = clamp(y + 1.13 * v, 0.0, 1.0) ;
-    float G = clamp(y - 0.39 * u - 0.58 * v, 0.0, 1.0) ;
-    float B = clamp(y + 2.03 * u, 0.0, 1.0) ;
+    float R = clamp(Y + 1.13 * V, 0.0, 1.0) ;
+    float G = clamp(Y - 0.39 * U - 0.58 * V, 0.0, 1.0) ;
+    float B = clamp(Y + 2.03 * U, 0.0, 1.0) ;
 
     vec4 video_pixel = vec4( vec3(R,G,B), 1.0) ;
-    gl_FragColor = video_pixel ;
+    fragColor = video_pixel ;
 }
 `;
 
@@ -104,36 +102,6 @@ function createProgram(gl, vertexShaderSource, fragmentShaderSource) {
     return program;
 }
 
-function initBuffers(gl) {
-    const positionBuffer = gl.createBuffer();
-    buffers.positionBuffer = positionBuffer;
-
-    const texcoordBuffer = gl.createBuffer();
-    buffers.texcoordBuffer = texcoordBuffer;
-    
-    // Set a rectangle the same size as the image.
-    gl.bindBuffer(gl.ARRAY_BUFFER,  buffers.positionBuffer);
-    const x1 = 0;
-    const x2 = 0 + width;
-    const y1 = 0;
-    const y2 = 0 + height;
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([x1, y1, x2, y1, x1, y2, x1, y2, x2, y1, x2, y2]),
-        gl.STATIC_DRAW
-    );
-
-    // provide texture coordinates for the rectangle.
-    gl.bindBuffer(gl.ARRAY_BUFFER,  buffers.texcoordBuffer);
-    gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([
-        0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
-        ]),
-        gl.STATIC_DRAW
-    );
-}
-
 function initTexture(gl) {
     // gl.bindTexture means 'apply all following texture functions to this texture'
     // TEXTURE_MIN_FILTER determines how texture data is sampled when the texture is smaller than the source image
@@ -162,17 +130,23 @@ function init() {
    
     const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
     gl.useProgram(program);
-    programRef.program = program;
 
     // init attributes
-    // canvas vs image
-    const positionLocation = gl.getAttribLocation(program, "a_position");
+    const positionLocation = gl.getAttribLocation(program, "position");
     attributes.positionLocation = positionLocation;
-    // texture vs image
-    const texcoordLocation = gl.getAttribLocation(program, "a_texCoord");
-    attributes.texcoordLocation = texcoordLocation;
 
-    initBuffers(gl);
+    // init buffers
+    const positionBuffer = gl.createBuffer();
+    buffers.positionBuffer = positionBuffer;
+    // todo: this is probably wrong
+    const positions = new Float32Array([
+      0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
+    ]);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(attributes.positionLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(attributes.positionLocation);
+
     initTexture(gl);
 
     const u_image_frame = gl.getUniformLocation(program, "u_image_frame");
@@ -186,9 +160,6 @@ function init() {
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-
-    // Turn on the position attribute
-    gl.enableVertexAttribArray(attributes.positionLocation);
 
     // Bind the position buffer.
     gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positionBuffer);
@@ -210,29 +181,6 @@ function init() {
         );
     }
 
-    // Turn on the texcoord attribute
-    gl.enableVertexAttribArray(attributes.texcoordLocation);
-
-    // bind the texcoord buffer.
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.texcoordBuffer);
-
-    // Tell the texcoord attribute how to get data out of texcoordBuffer (ARRAY_BUFFER)
-    {
-        const size = 2;
-        const type = gl.FLOAT;
-        const normalize = false;
-        const stride = 0;
-        const offset = 0;
-        gl.vertexAttribPointer(
-            texcoordLocation,
-            size,
-            type,
-            normalize,
-            stride,
-            offset
-        );
-    }
-
     // lookup uniforms
     const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
     // set the resolution
@@ -241,21 +189,22 @@ function init() {
     // Draw the rectangle.
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
+    programRef.program = program;
     glRef.gl = gl;
 }
 
 function render(data, width, height) {
     // Assuming you have the Y, U, and V components in separate arrays 
-    glRef.gl.bindTexture(gl.TEXTURE_2D, textures.zero);
+    glRef.gl.bindTexture(glRef.gl.TEXTURE_2D, textures.zero);
     glRef.gl.texImage2D(
         glRef.gl.TEXTURE_2D, 
         0, 
-        gl.LUMINANCE, 
+        glRef.gl.LUMINANCE, 
         width, 
         height * 1.5, 
         0, 
-        gl.LUMINANCE, 
-        gl.UNSIGNED_BYTE, 
+        glRef.gl.LUMINANCE, 
+        glRef.gl.UNSIGNED_BYTE, 
         data
     );
    
@@ -264,6 +213,15 @@ function render(data, width, height) {
 }
 
 init();
+
+const xhr=new XMLHttpRequest();
+xhr.open('GET','/static/letter-f.yuv');
+xhr.responseType='arraybuffer';
+xhr.onload=()=>{
+    const data=xhr.response;
+    render(data, 475, 475);
+}
+xhr.send();
 
 // todo: receive images and call render()
 // left off here: https://chat.openai.com/c/f4829fe9-0ff2-42a6-bb40-9b0fd98ad6c4

@@ -31,15 +31,23 @@ var uniforms = {};
 
 const vertexShaderSource = `#version 300 es
 in vec2 position;
+in vec2 a_texCoord;
 out vec2 texCoord;
 uniform vec2 u_resolution;
 
 void main() {
-    gl_Position = vec4(position, 0.0, 1.0);
-    // clip space is from -1.0 to 1.0. adding one and dividing by 2 transforms it 
-    // to the interval [0, 1.0].
-    // then multiply by u_resolution to allow indexing into the texture.
-    texCoord = floor(((position + 1.0) * 0.5) * u_resolution);
+    // convert the position from pixels to 0.0 to 1.0
+    vec2 zeroToOne = position / u_resolution;
+
+    // convert from 0->1 to 0->2
+    vec2 zeroToTwo = zeroToOne * 2.0;
+
+    // convert from 0->2 to -1->+1 (clipspace)
+    vec2 clipSpace = zeroToTwo - 1.0;
+
+    gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+   
+    texCoord = a_texCoord;
 }
 `;
 
@@ -55,8 +63,8 @@ out vec4 fragColor;
 
 void main() {
     float y = texture(y_plane, texCoord).r;
-    float u = texture(u_plane, texCoord * 0.25).r;
-    float v = texture(v_plane, texCoord * 0.25).r;
+    float u = texture(u_plane, texCoord).r;
+    float v = texture(v_plane, texCoord).r;
 
     float r = y + 1.402 * v;
     float g = y - 0.344136 * u - 0.714136 * v;
@@ -123,21 +131,56 @@ function init() {
 
     const positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(
-        gl.ARRAY_BUFFER, 
-        new Float32Array([
-            -1, -1,
-             1, -1,
-            -1,  1,
-             1,  1
-        ]),
-        gl.STATIC_DRAW
-    );
+    var x1 = 0;
+    var x2 = canvas.width;
+    var y1 = 0;
+    var y2 = canvas.height;
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        x1, y1,
+        x2, y1,
+        x1, y2,
+        x1, y2,
+        x2, y1,
+        x2, y2,
+    ]), gl.STATIC_DRAW);
 
     const positionLocation = gl.getAttribLocation(program, "position");
     gl.enableVertexAttribArray(positionLocation);
-    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+    var size = 2;          // 2 components per iteration
+    var type = gl.FLOAT;   // the data is 32bit floats
+    var normalize = false; // don't normalize the data
+    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+    var offset = 0;        // start at the beginning of the buffer
+    gl.vertexAttribPointer(
+        positionLocation, size, type, normalize, stride, offset);
 
+    const texLocation = gl.getAttribLocation(program, "a_texCoord");
+    // provide texture coordinates for the rectangle.
+    var texCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        0.0,  0.0,
+        1.0,  0.0,
+        0.0,  1.0,
+        0.0,  1.0,
+        1.0,  0.0,
+        1.0,  1.0,
+    ]), gl.STATIC_DRAW);
+
+    // Turn on the attribute
+    gl.enableVertexAttribArray(texLocation);
+
+    // Tell the attribute how to get data out of texcoordBuffer (ARRAY_BUFFER)
+    var size = 2;          // 2 components per iteration
+    var type = gl.FLOAT;   // the data is 32bit floats
+    var normalize = false; // don't normalize the data
+    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+    var offset = 0;        // start at the beginning of the buffer
+    gl.vertexAttribPointer(
+        texLocation, size, type, normalize, stride, offset);
+
+    // set u_resolution
     const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
     gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
 
@@ -165,7 +208,20 @@ function render(gl, program, yData, uData, vData, width, height) {
     gl.bindTexture(gl.TEXTURE_2D, vTexture);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    // Release the texture
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.deleteTexture(yTexture);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.deleteTexture(uTexture);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.deleteTexture(vTexture);
 }
 
 function createTexture(gl, format, data, width, height) {

@@ -1,7 +1,8 @@
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
-    <head>
-        <link rel="stylesheet" href="/static/tools.css" type="text/css">
-    </head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="/static/tools.css" type="text/css">
+</head>
 <body style="display:flex; flex-direction:column; justify-content:space-between;">
     <span>video player</span>
     <canvas id="canvas" width="512" height="512">Browser doesn't support canvas. </canvas>
@@ -36,16 +37,16 @@ out vec2 texCoord;
 uniform vec2 u_resolution; 
   
 void main() {  
-    gl_Position =  vec4(( (position / u_resolution * 2.0) - 1.0)  * vec2(1, -1), 0, 1);
-    texCoord = (position + 1.0) / 2.0;
+    gl_Position =  vec4(position, 0, 1); //  vec4(( (position / u_resolution * 2.0) - 1.0)  * vec2(1, -1), 0, 1);
+    texCoord = position  * 0.5 + 0.5;
 }
 `;
 
 const fragmentShaderSource = `#version 300 es
 precision mediump float;
 
-uniform sampler2D u_image_frame;
 in vec2 texCoord;
+uniform sampler2D u_image_frame;
 out vec4 fragColor;
 
 void main() {
@@ -119,8 +120,8 @@ function initTexture(gl) {
 
 function init() {
     const canvas = document.querySelector("#canvas") || document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 475;
+    canvas.height = 475;
 
     const gl = canvas.getContext("webgl2");
     if (!gl) {
@@ -140,7 +141,8 @@ function init() {
     buffers.positionBuffer = positionBuffer;
     // todo: this is probably wrong
     const positions = new Float32Array([
-      0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
+        -1.0, -1.0, 1.0, -1.0, -1.0, 1.0,
+        -1.0, 1.0, 1.0, -1.0, 1.0, 1.0,
     ]);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positionBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
@@ -157,9 +159,9 @@ function init() {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, textures.zero);
 
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.clearColor(0, 0, 0, 0);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
     // Bind the position buffer.
     gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positionBuffer);
@@ -199,9 +201,9 @@ function render(data, width, height) {
     glRef.gl.texImage2D(
         glRef.gl.TEXTURE_2D, 
         0, 
-        glRef.gl.LUMINANCE, 
+        glRef.gl.RGB, 
         width, 
-        height * 1.5, 
+        height, 
         0, 
         glRef.gl.LUMINANCE, 
         glRef.gl.UNSIGNED_BYTE, 
@@ -218,6 +220,7 @@ const xhr=new XMLHttpRequest();
 xhr.open('GET','/static/letter-f.yuv');
 xhr.responseType='arraybuffer';
 xhr.onload=()=>{
+    console.log('got image');
     const data=xhr.response;
     render(data, 475, 475);
 }

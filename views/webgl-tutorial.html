@@ -35,24 +35,28 @@ out vec2 texCoord;
 uniform vec2 u_resolution;
 
 void main() {
-    gl_Position = vec4((position / u_resolution * 2.0 - 1.0) * vec2(1, -1), 0, 1);
-    texCoord = (position + 1.0) / 2.0;
+    gl_Position = vec4(position, 0.0, 1.0);
+    // clip space is from -1.0 to 1.0. adding one and dividing by 2 transforms it 
+    // to the interval [0, 1.0].
+    // then multiply by u_resolution to allow indexing into the texture.
+    texCoord = floor(((position + 1.0) * 0.5) * u_resolution);
 }
 `;
 
 const fragmentShaderSource = `#version 300 es
-precision mediump float;
+precision highp float;
 
 in vec2 texCoord;
-uniform sampler2D u_y_plane;
-uniform sampler2D u_u_plane;
-uniform sampler2D u_v_plane;
+// these uniforms are 1d textures with GL_R8 internal format
+uniform sampler2D y_plane;
+uniform sampler2D u_plane;
+uniform sampler2D v_plane;
 out vec4 fragColor;
 
 void main() {
-    float y = texture(u_y_plane, texCoord).r;
-    float u = texture(u_u_plane, texCoord).r - 0.5;
-    float v = texture(u_v_plane, texCoord).r - 0.5;
+    float y = texture(y_plane, texCoord).r;
+    float u = texture(u_plane, texCoord * 0.25).r;
+    float v = texture(v_plane, texCoord * 0.25).r;
 
     float r = y + 1.402 * v;
     float g = y - 0.344136 * u - 0.714136 * v;
@@ -112,15 +116,29 @@ function init() {
     const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
     gl.useProgram(program);
 
+    // Create a vertex array object (attribute state)
+    refs.vao = gl.createVertexArray();
+    // and make it the one we're currently working with
+    gl.bindVertexArray(refs.vao);
+
     const positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.bufferData(
+        gl.ARRAY_BUFFER, 
+        new Float32Array([
+            -1, -1,
+             1, -1,
+            -1,  1,
+             1,  1
+        ]),
+        gl.STATIC_DRAW
+    );
 
     const positionLocation = gl.getAttribLocation(program, "position");
-    const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
-
-    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+    const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
     gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
 
     refs.program = program;

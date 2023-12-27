@@ -4,6 +4,10 @@ from bottle import route, run, static_file, template
 def test_bbb():
 	return static_file("bbb_sunflower_1080p_30fps_stereo_arcd.mp4", root='/home/fu/Documents')
 
+@route('/static/test-image.jpeg')
+def test_image():
+	return static_file("test-image.jpeg", root="./static")
+
 @route('/static/tools.css')
 def tools_styles():
 	return static_file("tools.css", root='./static')

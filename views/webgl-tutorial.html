@@ -19,21 +19,152 @@ function play() {
 }
 
 const vertexShaderSource = `#version 300 es
- 
-void main() {  
+// https://webgl2fundamentals.org/webgl/lessons/webgl-3d-textures.html
+// an attribute is an input (in) to a vertex shader.
+// It will receive data from a buffer
+in vec4 a_position;
+in vec2 a_texcoord;
+// a varying to pass the texture coordinates to the fragment shader
+out vec2 v_texcoord;
 
+// all shaders have a main function
+void main() {
+
+  // gl_Position is a special variable a vertex shader
+  // is responsible for setting
+  gl_Position = a_position;
+
+  // Pass the texcoord to the fragment shader.
+  v_texcoord = a_texcoord;
 }
 `;
 
 const fragmentShaderSource = `#version 300 es
 precision highp float;
 
-void main() {
+// Passed in from the vertex shader.
+in vec2 v_texcoord;
+ 
+// The texture.
+uniform sampler2D u_texture;
 
+// we need to declare an output for the fragment shader
+out vec4 outColor;
+
+void main() {
+    outColor = texture(u_texture, v_texcoord);
 }
 `;
 
 var glRef = {};
+
+// this is from the mozilla tutorial but also documented here: https://webgl2fundamentals.org/webgl/lessons/webgl-render-to-texture.html
+//
+// Initialize a texture and load an image.
+// When the image finished loading copy it into the texture.
+//
+function loadTexture(gl, url) {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Because images have to be downloaded over the internet
+  // they might take a moment until they are ready.
+  // Until then put a single pixel in the texture so we can
+  // use it immediately. When the image has finished downloading
+  // we'll update the texture with the contents of the image.
+  const level = 0;
+  const internalFormat = gl.RGBA;
+  const width = 1;
+  const height = 1;
+  const border = 0;
+  const srcFormat = gl.RGBA;
+  const srcType = gl.UNSIGNED_BYTE;
+  const pixel = new Uint8Array([0, 0, 255, 255]); // opaque blue
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    level,
+    internalFormat,
+    width,
+    height,
+    border,
+    srcFormat,
+    srcType,
+    pixel,
+  );
+
+  const image = new Image();
+  image.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      level,
+      internalFormat,
+      srcFormat,
+      srcType,
+      image,
+    );
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  };
+  image.src = url;
+
+  return texture;
+}
+
+function initTextureBuffer(gl) {
+  const textureCoordBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
+
+  const textureCoordinates = [
+    // Front
+    0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
+  ];
+
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(textureCoordinates),
+    gl.STATIC_DRAW,
+  );
+
+  return textureCoordBuffer;
+}
+
+function initPositionBuffer(gl) {
+
+    // look up where the vertex data needs to go.
+    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+
+    // Create a buffer
+    var positionBuffer = gl.createBuffer();
+
+    // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    // points for a square
+    var positions = [
+        1.0, 1.0,
+        -1.0, 1.0,
+        1.0, -1.0,
+        -1.0, -1.0
+    ];
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+    // not sure if this is needed
+    return positionBuffer;
+}
+
+function initBuffers(gl) {
+  const positionBuffer = initPositionBuffer(gl);
+  const textureBuffer = initTextureBuffer(gl);
+
+  return {
+    position: positionBuffer,
+    texture: textureBuffer,
+  };
+}
+
 
 function main() {
     const canvas = document.querySelector("#canvas") || document.createElement("canvas");
@@ -55,10 +186,22 @@ function main() {
 
     gl.useProgram(program);
 
+    // todo: maybe delete this block of code
+    // -------------------------------------
     // Set clear color to black, fully opaque
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     // Clear the color buffer with specified clear color
     gl.clear(gl.COLOR_BUFFER_BIT);
+
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    loadTexture(gl, "/static/test-image.jpeg");
+    // Flip image pixels into the bottom-to-top order that WebGL expects.
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+    initTextureBuffer(gl);
+
 }
 
 main();

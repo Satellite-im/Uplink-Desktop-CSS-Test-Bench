@@ -25,7 +25,7 @@ function play() {
 // uniforms{} contains const parameters used to convert between yuv and rgb. 
 var uniforms = {};
 // stores the gl object
-var glContext = {};
+var glRef = {};
 // the opengl texture, which is bound using gl.bindTexture() and then assigned to using the uniforms
 var textures = {};
 
@@ -118,6 +118,24 @@ function getTextures(gl) {
     };
 }
 
+function initTextures(gl) {
+    // gl.bindTexture means 'apply all following texture functions to this texture'
+    // TEXTURE_MIN_FILTER determines how texture data is sampled when the texture is smaller than the source image
+    // TEXTURE_MAX_FILTER ''                                                         larger than the source image
+
+    gl.bindTexture(gl.TEXTURE_2D, textures.yTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    gl.bindTexture(gl.TEXTURE_2D, textures.uTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    gl.bindTexture(gl.TEXTURE_2D, textures.vTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+}
+
 function main() {
     const canvas = document.querySelector("#canvas") || document.createElement("canvas");
     canvas.width = 512;
@@ -132,6 +150,7 @@ function main() {
     const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
     gl.useProgram(program);
 
+    // todo: does position need to be prefixed with "attribute" in glsl
     const positionAttributeLocation = gl.getAttribLocation(program, "position");
     const positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -140,30 +159,24 @@ function main() {
     gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(positionAttributeLocation);
 
-   // textures ang glContext are needed by render()
+   // textures ang glRef are needed by render()
    textures = getTextures(gl);
+   initTextures();
    // it may not be necessary to store these. in a global variable
    uniforms = getUniforms(gl);
-   glContext.gl = gl;
+   glRef.gl = gl;
 }
 
-// todo: input width and height
-function render(gl, yData, uData, vData) {
+function render(gl, width, height, yData, uData, vData) {
     // Assuming you have the Y, U, and V components in separate arrays 
     gl.bindTexture(gl.TEXTURE_2D, textures.yTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, width, height, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, yData);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
    
     gl.bindTexture(gl.TEXTURE_2D, textures.uTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, width / 2, height / 2, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, uData);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     
     gl.bindTexture(gl.TEXTURE_2D,textures. vTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, width / 2, height / 2, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, vData);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
    
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

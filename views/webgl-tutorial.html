@@ -63,14 +63,15 @@ out vec4 fragColor;
 
 void main() {
     float y = texture(y_plane, texCoord).r;
-    float u = texture(u_plane, texCoord).r;
-    float v = texture(v_plane, texCoord).r;
+    float u = texture(u_plane, texCoord).r - 0.5;
+    float v = texture(v_plane, texCoord).r - 0.5;
 
-    float r = y + 1.402 * v;
-    float g = y - 0.344136 * u - 0.714136 * v;
-    float b = y + 1.772 * u;
+    float R = clamp(y + 1.13 * v, 0.0, 1.0) ;
+    float G = clamp(y - 0.39 * u - 0.58 * v, 0.0, 1.0) ;
+    float B = clamp(y + 2.03 * u, 0.0, 1.0) ;
 
-    fragColor = vec4(r, g, b, 1.0);
+    vec4 video_pixel = vec4( vec3(R,G,B), 1.0) ;
+    fragColor =  video_pixel  ;
 }
 `;
 
@@ -210,7 +211,7 @@ function render(gl, program, yData, uData, vData, width, height) {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-    // Release the texture
+    // Release the textures
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.deleteTexture(yTexture);
@@ -254,8 +255,8 @@ xhr.onload=()=>{
     console.log('got image');
     const data=xhr.response;
     var len = data.byteLength;
-    var width = 474;
-    var height = 474;
+    var width = 512;
+    var height = 512;
     var y_len = width * height;
     var u_len = y_len / 4;
     var y = data.slice(0, y_len);

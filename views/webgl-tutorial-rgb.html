@@ -210,11 +210,11 @@ function createTexture(gl, data, width, height) {
     gl.texImage2D(
         gl.TEXTURE_2D, 
         0, 
-        gl.LUMINANCE, 
+        gl.RGB, 
         width, 
         height, 
         0, 
-        gl.LUMINANCE, 
+        gl.RGB, 
         gl.UNSIGNED_BYTE, 
         new Uint8Array(data)
     );

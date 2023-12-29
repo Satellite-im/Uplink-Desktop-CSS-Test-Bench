@@ -4,8 +4,8 @@
     <link rel="stylesheet" href="/static/tools.css" type="text/css">
 </head>
 <body style="display:flex; flex-direction:column; justify-content:space-between;">
-    <span>video player</span>
-    <canvas id="canvas" width="474" height="474">Browser doesn't support canvas. </canvas>
+    <span>video player (rgb)</span>
+    <canvas id="canvas" width="512" height="512">Browser doesn't support canvas. </canvas>
     <button onclick="play()">start</button>
     <script type="text/javascript" src="/webgl/webgl-utils.js"></script>
     <script type="text/javascript">
@@ -58,22 +58,13 @@ const fragmentShaderSource = `#version 300 es
 precision highp float;
 
 in vec2 texCoord;
-// these uniforms are 1d textures with GL_R8 internal format
-uniform sampler2D y_plane;
-uniform sampler2D u_plane;
-uniform sampler2D v_plane;
+
+uniform sampler2D u_image;
+
 out vec4 fragColor;
 
 void main() {
-    float Y = texture(y_plane, texCoord)[0];
-    float U = texture(u_plane, texCoord)[0];
-    float V = texture(v_plane, texCoord)[0];
-
-    float R = Y + (V * 1.5748) ;
-    float G = Y + (U * -0.1873) + (V * -0.4681) ;
-    float B = Y + (U * 1.8556) ;
-
-    fragColor =  vec4( vec3(R,G,B), 1.0)  ;
+    fragColor = texture(u_image, texCoord);
 }
 `;
 
@@ -191,23 +182,14 @@ function init() {
     refs.canvas = canvas;
 }
 
-function render(gl, program, yData, uData, vData, width, height) {
-    const yTexture = createTexture(gl, yData, width, height);
-    const uTexture = createTexture(gl, uData, width / 2, height / 2);
-    const vTexture = createTexture(gl, vData, width / 2, height / 2);
+function render(gl, program, image, width, height) {
+    const texture = createTexture(gl, image, width, height);
 
-    gl.uniform1i(gl.getUniformLocation(program, "y_plane"), 0);
-    gl.uniform1i(gl.getUniformLocation(program, "u_plane"), 1);
-    gl.uniform1i(gl.getUniformLocation(program, "v_plane"), 2);
+    gl.uniform1i(gl.getUniformLocation(program, "u_image"), 0);
 
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, yTexture);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, uTexture);
-
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, vTexture);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -215,15 +197,7 @@ function render(gl, program, yData, uData, vData, width, height) {
     // Release the textures
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.deleteTexture(yTexture);
-
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.deleteTexture(uTexture);
-
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.deleteTexture(vTexture);
+    gl.deleteTexture(texture);
 }
 
 function createTexture(gl, data, width, height) {
@@ -250,7 +224,7 @@ function createTexture(gl, data, width, height) {
 init();
 
 const xhr=new XMLHttpRequest();
-xhr.open('GET','/static/letter-f.yuv');
+xhr.open('GET','/static/letter-f.rgb');
 xhr.responseType='arraybuffer';
 xhr.onload=()=>{
     console.log('got image');
@@ -258,14 +232,9 @@ xhr.onload=()=>{
     var len = data.byteLength;
     var width = 512;
     var height = 512;
-    var y_len = width * height;
-    var u_len = y_len / 4;
-    var y = data.slice(0, y_len);
-    var u = data.slice(y_len, y_len + u_len);
-    var v = data.slice(y_len + u_len, y_len + u_len + u_len);
 
-    console.log("len: " + len + " y_len: " + y_len + " u_len: " + u_len);
-    render(refs.gl, refs.program, y, u, v, width, height);
+    console.log("len: " + len);
+    render(refs.gl, refs.program, data, width, height);
 }
 xhr.send();
 

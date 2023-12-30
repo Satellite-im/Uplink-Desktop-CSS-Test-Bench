@@ -64,16 +64,26 @@ uniform sampler2D u_plane;
 uniform sampler2D v_plane;
 out vec4 fragColor;
 
+// https://gist.github.com/crearo/798412489698e749c17e572e74496e1b
 void main() {
-    float Y = texture(y_plane, texCoord)[0];
-    float U = texture(u_plane, texCoord)[0];
-    float V = texture(v_plane, texCoord)[0];
+    float r, g, b, y, u, v;
+    y = texture(y_plane, texCoord)[0];
+    // wtf - why did this work? 
+    // the test program converted from RGB to Y/Cb/Cr with a range of 0-255 but subtracting 0.5 
+    // makes it look like the scale was from 0.0 to 1.0. 
+    u = texture(u_plane, texCoord)[0] - 0.5; // 128.0;
+    v = texture(v_plane, texCoord)[0] - 0.5; // 128.0;
 
-    float R = Y + (V * 1.5748) ;
-    float G = Y + (U * -0.1873) + (V * -0.4681) ;
-    float B = Y + (U * 1.8556) ;
 
-    fragColor =  vec4( vec3(R,G,B), 1.0)  ;
+    r = y + 1.4*v;
+    g = y-0.343*u-0.711*v;
+    b = y+1.765*u;
+
+    //r = clamp(r, 0.0, 255.0);
+    //g = clamp(g, 0.0, 255.0);
+    //b = clamp(b, 0.0, 255.0);
+
+    fragColor =  vec4( r, g, b, 1.0)  ;
 }
 `;
 
